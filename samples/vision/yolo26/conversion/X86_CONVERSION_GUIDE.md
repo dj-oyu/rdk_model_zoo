@@ -45,7 +45,38 @@ Copy these files from your RDK X5 device to the x86 machine:
 
 ## Method 1: Pip Installation (Recommended)
 
-### Step 1: Install Miniconda
+Choose either **Option A (uv)** or **Option B (Miniconda)** for Python environment setup.
+
+### Option A: Using uv (Faster)
+
+[uv](https://github.com/astral-sh/uv) is a fast Python package manager. Recommended for users who prefer lightweight tooling.
+
+```bash
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create virtual environment with Python 3.10
+uv venv --python 3.10 .venv
+
+# Activate
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
+
+# Install RDK X5 toolchain and dependencies
+uv pip install rdkx5-yolo-mapper opencv-python numpy onnxruntime
+
+# Verify installation
+hb_mapper --version
+# Expected: hb_mapper, version 1.24.3+
+```
+
+If download is slow, use a mirror:
+```bash
+uv pip install rdkx5-yolo-mapper opencv-python numpy onnxruntime \
+  --index-url https://mirrors.aliyun.com/pypi/simple/
+```
+
+### Option B: Using Miniconda
 
 ```bash
 # Download Miniconda
@@ -57,23 +88,15 @@ bash Miniconda3-latest-Linux-x86_64.sh -b -p $HOME/miniconda3
 # Initialize
 $HOME/miniconda3/bin/conda init bash
 source ~/.bashrc
-```
 
-### Step 2: Create Python Environment
-
-```bash
 # Create environment with Python 3.10
 conda create -n rdk_x5 python=3.10 -y
 
 # Activate
 conda activate rdk_x5
-```
 
-### Step 3: Install RDK X5 Toolchain
-
-```bash
-# Install the mapper toolchain
-pip install rdkx5-yolo-mapper
+# Install RDK X5 toolchain and dependencies
+pip install rdkx5-yolo-mapper opencv-python numpy onnxruntime
 
 # Verify installation
 hb_mapper --version
@@ -83,12 +106,6 @@ hb_mapper --version
 If download is slow, use a mirror:
 ```bash
 pip install rdkx5-yolo-mapper -i https://mirrors.aliyun.com/pypi/simple/
-```
-
-### Step 4: Install Additional Dependencies
-
-```bash
-pip install opencv-python numpy onnxruntime
 ```
 
 ---
@@ -180,8 +197,9 @@ Place 20-50 representative images (JPG/PNG) in `./calibration_images/`
 ### Step 3: Run the Conversion
 
 ```bash
-# Activate conda environment (if using pip method)
-conda activate rdk_x5
+# Activate environment (choose one)
+source .venv/bin/activate  # if using uv
+conda activate rdk_x5      # if using Miniconda
 
 # Run mapper
 python3 mapper.py \
@@ -231,7 +249,9 @@ scp ./model/yolo26n_det_bpu_bayese_640x640_nv12.bin \
 ## Troubleshooting
 
 ### Error: `hb_mapper: command not found`
-- Ensure conda environment is activated: `conda activate rdk_x5`
+- Ensure virtual environment is activated:
+  - uv: `source .venv/bin/activate`
+  - Miniconda: `conda activate rdk_x5`
 - Or verify Docker container is running with the toolchain image
 
 ### Error: `No valid images found in calibration directory`
@@ -255,19 +275,46 @@ scp ./model/yolo26n_det_bpu_bayese_640x640_nv12.bin \
 
 ## Quick Reference Commands
 
+### Linux/macOS
+
 ```bash
-# Full conversion command (pip method)
+# Full conversion command (uv)
+source .venv/bin/activate && \
+python3 mapper.py \
+  --onnx ./model/yolo26n_det_bpu.onnx \
+  --cal-images ./calibration_images/
+
+# Full conversion command (Miniconda)
 conda activate rdk_x5 && \
 python3 mapper.py \
   --onnx ./model/yolo26n_det_bpu.onnx \
   --cal-images ./calibration_images/
 
-# Docker one-liner
+# Docker one-liner (Linux/macOS)
 docker run -it --rm \
   -v $(pwd):/workspace \
   openexplorer/ai_toolchain_ubuntu_20_x5_cpu:v1.2.8 \
   bash -c "cd /workspace && python3 mapper.py --onnx ./model/yolo26n_det_bpu.onnx --cal-images ./calibration_images/"
 ```
+
+### Windows (Docker Desktop)
+
+```powershell
+# Download calibration images (PowerShell)
+Invoke-WebRequest -Uri "https://ultralytics.com/assets/coco128.zip" -OutFile "coco128.zip"
+Expand-Archive -Path "coco128.zip" -DestinationPath "."
+New-Item -ItemType Directory -Force -Path "calibration_images"
+Move-Item -Path "coco128\images\train2017\*" -Destination "calibration_images\"
+Remove-Item -Recurse -Force "coco128", "coco128.zip"
+
+# Docker one-liner (Windows - use explicit path)
+docker run --rm -v "d:/path/to/rdk_model_zoo:/workspace" openexplorer/ai_toolchain_ubuntu_20_x5_cpu:v1.2.8 bash -c "cd /workspace && python3 samples/vision/yolo26/conversion/mapper.py --onnx ./yolo26n_det_bpu.onnx --cal-images ./calibration_images/"
+```
+
+> **Note for Windows users:**
+> - Docker Desktop must be running
+> - Use forward slashes `/` in the volume path (e.g., `d:/path/to/...`)
+> - Do not use `-it` flag when running non-interactively (use `--rm` only)
 
 ---
 
@@ -289,6 +336,7 @@ python3 main.py --task detect \
 
 ## References
 
+- [uv - Fast Python Package Manager](https://github.com/astral-sh/uv)
 - [Docker Hub: openexplorer/ai_toolchain_ubuntu_20_x5_cpu](https://hub.docker.com/r/openexplorer/ai_toolchain_ubuntu_20_x5_cpu)
 - [D-Robotics RDK Documentation](https://developer.d-robotics.cc/rdk_doc/en/)
 - [D-Robotics GitHub](https://github.com/D-Robotics)
